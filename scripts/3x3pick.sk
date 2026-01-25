@@ -1,0 +1,47 @@
+command /give3x3pick [<player>]:
+    permission: 3x3pick.give
+    trigger:
+        if arg-1 is set:
+            give arg-1 diamond pickaxe named "&b3x3 Pickaxe" with lore "&7Mines in a 3x3 area"
+            send "&aYou have given a &b3x3 Pickaxe &ato %arg-1%."
+            send "&aYou have received a &b3x3 Pickaxe&a!" to arg-1
+        else:
+            give player diamond pickaxe named "&b3x3 Pickaxe" with lore "&7Mines in a 3x3 area"
+            send "&aYou have been given the &b3x3 Pickaxe&a!"
+
+on break:
+    if name of player's tool is "&b3x3 Pickaxe":
+        set {_b} to event-block
+        set {_pitch} to pitch of player
+
+        clear {_offsets::*}
+        add -1 to {_offsets::*}
+        add 0 to {_offsets::*}
+        add 1 to {_offsets::*}
+
+        if {_pitch} > 60 or {_pitch} < -60:
+            # Looking mostly up or down → mine a horizontal plane
+            loop {_offsets::*}:
+                set {_x} to loop-value-1
+                loop {_offsets::*}:
+                    set {_z} to loop-value-2
+                    set {_loc} to location of {_b}
+                    add {_x} to x-coordinate of {_loc}
+                    add {_z} to z-coordinate of {_loc}
+                    set {_target} to block at {_loc}
+                    if {_target} is not air:
+                        if {_target} is not {_b}:
+                            break {_target} naturally using player's tool
+        else:
+            # Looking mostly forward → mine a vertical plane
+            loop {_offsets::*}:
+                set {_x} to loop-value-1
+                loop {_offsets::*}:
+                    set {_y} to loop-value-2
+                    set {_loc} to location of {_b}
+                    add {_x} to x-coordinate of {_loc}
+                    add {_y} to y-coordinate of {_loc}
+                    set {_target} to block at {_loc}
+                    if {_target} is not air:
+                        if {_target} is not {_b}:
+                            break {_target} naturally using player's tool

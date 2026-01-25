@@ -1,0 +1,89 @@
+# --- CONFIG ---
+options:
+    prefix: &7[&bOGSMP&7] &r
+
+# Track last killer
+on damage of player:
+    attacker is player
+    set {lastkiller.%victim%} to attacker
+
+command /keepinventory:
+    trigger:
+        if {keepinv.%player%} is set:
+            delete {keepinv.%player%}
+            send "{@prefix}&cKeep Inventory mode disabled."
+        else:
+            set {keepinv.%player%} to true
+            send "{@prefix}&aKeep Inventory mode enabled."
+
+on death of player:
+    set {_victim} to victim
+    set {_killer} to {lastkiller.%{_victim}%}
+
+    set {_victimKeep} to false
+    set {_killerKeep} to false
+
+    if {keepinv.%{_victim}%} is set:
+        set {_victimKeep} to true
+
+    if {_killer} is player:
+        if {keepinv.%{_killer}%} is set:
+            set {_killerKeep} to true
+
+    if {_victimKeep} or {_killerKeep}:
+        clear drops
+
+        # Save armor slots to variables
+        set {_helmet} to victim's helmet
+        set {_chestplate} to victim's chestplate
+        set {_leggings} to victim's leggings
+        set {_boots} to victim's boots
+
+        # Backup inventory (excluding armor)
+        delete {inv_backup.%victim%::*}
+        loop all items in victim's inventory:
+            set {_item} to loop-item
+            if {_item} is not {_helmet}:
+                if {_item} is not {_chestplate}:
+                    if {_item} is not {_leggings}:
+                        if {_item} is not {_boots}:
+                            add {_item} to {inv_backup.%victim%::*}
+
+        # Backup armor manually
+        delete {armor_backup.%victim%::*}
+        set {armor_backup.%victim%.1} to {_helmet}
+        set {armor_backup.%victim%.2} to {_chestplate}
+        set {armor_backup.%victim%.3} to {_leggings}
+        set {armor_backup.%victim%.4} to {_boots}
+
+        # Clear armor
+        set victim's helmet to air
+        set victim's chestplate to air
+        set victim's leggings to air
+        set victim's boots to air
+
+        # Backup XP
+        set {xp_backup.%victim%} to victim's total experience
+
+        if {_victimKeep}:
+            send "{@prefix}&aYou kept your inventory because Keep Inventory mode is enabled." to {_victim}
+        else:
+            send "{@prefix}&aBecause your killer has Keep Inventory enabled, you kept your items." to {_victim}
+            send "{@prefix}&aYour Keep Inventory mode protected your victim's items." to {_killer}
+
+on respawn:
+    if {inv_backup.%player%::*} is set:
+        clear player's inventory
+        loop {inv_backup.%player%::*}:
+            give loop-value to player
+
+        set player's helmet to {armor_backup.%player%.1}
+        set player's chestplate to {armor_backup.%player%.2}
+        set player's leggings to {armor_backup.%player%.3}
+        set player's boots to {armor_backup.%player%.4}
+
+        set player's total experience to {xp_backup.%player%}
+
+        delete {inv_backup.%player%::*}
+        delete {armor_backup.%player%::*}
+        delete {xp_backup.%player%}

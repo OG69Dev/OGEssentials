@@ -1,0 +1,26 @@
+# disable_commands.sk
+
+options:
+  prefix: &7[&bOGSMP&7] &r
+  blocked_commands: gamemode, gm, op, deop,reload, kick, ban, pardon, give
+
+on load:
+  clear {blocked::*}
+  set {blocked::1} to "gamemode"
+  set {blocked::2} to "gm"
+  set {blocked::3} to "op"
+  set {blocked::4} to "deop"
+  set {blocked::5} to "reload"
+  set {blocked::6} to "kick"
+  set {blocked::7} to "ban"
+  set {blocked::8} to "pardon"
+  set {blocked::9} to "give"
+
+on command:
+  set {_cmd} to command
+
+  loop {blocked::*}:
+    if {_cmd} is loop-value:
+      cancel event
+      send "{@prefix}&c❌ This command (&4/%{_cmd}%&c) is disabled on this server."
+      stop

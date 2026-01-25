@@ -1,0 +1,96 @@
+name: OGEssentials
+version: ${project.version}
+main: dev.og69.ogessentials.OGEssentials
+api-version: '1.21'
+description: Essential server features plugin for PaperMC 1.21.6
+author: OG69 Dev™
+website: https://github.com/OG69Dev/OGEssentials
+
+# Soft dependencies - plugin works without these but provides enhanced functionality
+softdepend:
+  - PlaceholderAPI
+  - CoreProtect
+
+commands:
+  tpa:
+    description: Request to teleport to a player
+    usage: /<command> <player>
+    permission: ogessentials.tpa
+    aliases: [teleportask]
+  
+  tpaccept:
+    description: Accept a pending TPA request
+    usage: /<command>
+    permission: ogessentials.tpa
+    aliases: [tpaccept, tpyes]
+  
+  tpdeny:
+    description: Deny a pending TPA request
+    usage: /<command>
+    permission: ogessentials.tpa
+    aliases: [tpno]
+  
+  sethome:
+    description: Set a home at your current location
+    usage: /<command> [name]
+    permission: ogessentials.home
+    aliases: [createhome]
+  
+  home:
+    description: Teleport to one of your homes
+    usage: /<command> [name]
+    permission: ogessentials.home
+    aliases: [h]
+  
+  delhome:
+    description: Delete a home
+    usage: /<command> <name>
+    permission: ogessentials.home
+    aliases: [deletehome, removehome]
+  
+  homes:
+    description: List all your homes
+    usage: /<command>
+    permission: ogessentials.home
+    aliases: [listhomes, myhomes]
+  
+  keepinventory:
+    description: Toggle keep inventory mode
+    usage: /<command>
+    permission: ogessentials.keepinventory
+    aliases: [keepinv, ki]
+  
+  give3x3pick:
+    description: Give a 3x3 pickaxe
+    usage: /<command> [player]
+    permission: ogessentials.3x3pick.give
+    aliases: [3x3pick, givepick]
+
+permissions:
+  ogessentials.*:
+    description: All OG-Essentials permissions
+    default: op
+    children:
+      ogessentials.tpa: true
+      ogessentials.home: true
+      ogessentials.keepinventory: true
+      ogessentials.3x3pick.give: true
+  
+  ogessentials.tpa:
+    description: Use TPA commands
+    default: true
+  
+  ogessentials.home:
+    description: Use home commands
+    default: true
+  
+  ogessentials.keepinventory:
+    description: Use keep inventory command
+    default: true
+  
+  ogessentials.3x3pick.give:
+    description: Give 3x3 pickaxe
+    default: op
+  ogessentials.3x3pick.break.*:
+    description: Break any block with 3x3 pickaxe
+    default: true

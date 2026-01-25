@@ -1,0 +1,130 @@
+# --- CONFIG ---
+options:
+    prefix: &7[&bOGSMP&7] &r
+    max-homes: 3
+
+# --- TPA Command ---
+command /tpa [<player>]:
+    trigger:
+        if arg is not set:
+            send "{@prefix}&cUsage: &f/tpa <player>"
+            stop
+
+        if arg = player:
+            send "{@prefix}&cYou can't send a TPA request to yourself!"
+            stop
+
+        if {tpa.to.%arg%} is set:
+            send "{@prefix}&cThat player already has a pending TPA request!"
+            stop
+
+        set {tpa.from.%arg%} to player
+        set {tpa.to.%player%} to arg
+        set {tpa.time.%arg%} to now
+
+        send "{@prefix}&aTPA request sent to &f%arg%&a! They have 60 seconds to accept."
+        send "{@prefix}&e%player% &awants to teleport to you. Type &e/tpaccept &aor &c/tpdeny" to arg
+        send "{@prefix}&7This request will expire in 60 seconds." to arg
+
+command /tpaccept:
+    trigger:
+        if {tpa.from.%player%} is set:
+            set {_requester} to {tpa.from.%player%}
+            delete {tpa.from.%player%}
+            delete {tpa.to.%{_requester}%}
+            delete {tpa.time.%player%}
+            teleport {_requester} to player
+            send "{@prefix}&aYou accepted the teleport request from &f%{_requester}%&a."
+            send "{@prefix}&a%player% accepted your TPA request!" to {_requester}
+        else:
+            send "{@prefix}&cYou have no pending TPA requests."
+
+command /tpdeny:
+    trigger:
+        if {tpa.from.%player%} is set:
+            set {_requester} to {tpa.from.%player%}
+            delete {tpa.from.%player%}
+            delete {tpa.to.%{_requester}%}
+            delete {tpa.time.%player%}
+            send "{@prefix}&cYou denied the teleport request from &f%{_requester}%."
+            send "{@prefix}&c%player% denied your TPA request." to {_requester}
+        else:
+            send "{@prefix}&cYou have no pending TPA requests."
+
+every 5 seconds:
+    loop all players:
+        if {tpa.from.%loop-player%} is set:
+            set {_requester} to {tpa.from.%loop-player%}
+            if difference between now and {tpa.time.%loop-player%} > 60 seconds:
+                send "{@prefix}&cYour TPA request to %loop-player% has expired." to {_requester}
+                send "{@prefix}&cThe TPA request from %{_requester}% has expired." to loop-player
+                delete {tpa.from.%loop-player%}
+                delete {tpa.to.%{_requester}%}
+                delete {tpa.time.%loop-player%}
+
+# --- HOME COMMANDS ---
+
+command /sethome [<text>]:
+    trigger:
+        if arg is not set:
+            set {_name} to "home"
+        else:
+            set {_name} to arg
+
+        # Check if they already reached the max
+        set {_list::*} to {homes.%uuid of player%.list::*}
+        if size of {_list::*} >= {@max-homes} and {homes.%uuid of player%.%{_name}%} is not set:
+            send "{@prefix}&cYou have reached the max number of homes (&f{@max-homes}&c)."
+            stop
+
+        if {homes.%uuid of player%.%{_name}%} is set:
+            # Updating an existing home
+            set {homes.%uuid of player%.%{_name}%} to location of player
+            send "{@prefix}&eHome '&f%{_name}%&e' has been updated to your new location."
+        else:
+            # Creating a new home
+            set {homes.%uuid of player%.%{_name}%} to location of player
+            add {_name} to {homes.%uuid of player%.list::*}
+            send "{@prefix}&aHome '&f%{_name}%&a' has been set at your current location."
+
+command /home [<text>]:
+    trigger:
+        if arg is not set:
+            set {_name} to "home"
+        else:
+            set {_name} to arg
+
+        if {homes.%uuid of player%.%{_name}%} is not set:
+            send "{@prefix}&cHome '&f%{_name}%&c' does not exist."
+            stop
+
+        teleport player to {homes.%uuid of player%.%{_name}%}
+        send "{@prefix}&aTeleported to home '&f%{_name}%&a'."
+
+command /delhome [<text>]:
+    trigger:
+        if arg is not set:
+            send "{@prefix}&cUsage: &f/delhome <name>"
+            stop
+
+        if {homes.%uuid of player%.%arg%} is not set:
+            send "{@prefix}&cHome '&f%arg%&c' does not exist."
+            stop
+
+        delete {homes.%uuid of player%.%arg%}
+        remove arg from {homes.%uuid of player%.list::*}
+        send "{@prefix}&aDeleted home '&f%arg%&a'."
+
+command /homes:
+    trigger:
+        set {_list::*} to {homes.%uuid of player%.list::*}
+        if size of {_list::*} is 0:
+            send "{@prefix}&cYou have no homes set."
+            stop
+
+        set {_homes} to ""
+        loop {_list::*}:
+            add "%loop-value%, " to {_homes}
+        if {_homes} is not "":
+            set {_homes} to substring of {_homes} from 1 to length of {_homes} - 2
+        send "{@prefix}&aYour Homes: &f%{_homes}%"

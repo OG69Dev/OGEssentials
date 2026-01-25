@@ -1,0 +1,53 @@
+options:
+    prefix: "&7[&bOGSMP&7] &r"
+    message-color: "&a"
+
+# Track last movement for AFK
+on player move:
+    set {last-move::%uuid of player%} to now
+    if {is-afk::%uuid of player%} is true:
+        set {is-afk::%uuid of player%} to false
+        execute console command "team leave %player%"
+        send "%{@prefix}%&a%player% &7is no longer AFK." to all players
+
+every 1 minute:
+    loop all players:
+        if difference between now and {last-move::%uuid of loop-player%} > 300 seconds:
+            if {is-afk::%uuid of loop-player%} is not true:
+                set {is-afk::%uuid of loop-player%} to true
+                execute console command "team join afktemp %loop-player%"
+                send "%{@prefix}%&e%loop-player% &7is now AFK." to all players
+
+# Bed enter event
+on bed enter:
+    add event-player to {_sleeping::%world of event-player%::*}
+
+    set {_online} to 0
+    loop all players in world of event-player:
+        if {is-afk::%uuid of loop-player%} is not true:
+            add 1 to {_online}
+
+    set {_needed} to ceiling({_online} / 2)
+
+    loop all players in world of event-player:
+        send "%{@prefix}%&a%size of {_sleeping::%world of event-player%::*}%&7/&f%{_online}% sleeping. Need &e%{_needed}%&7 to skip night." to loop-player
+
+    if size of {_sleeping::%world of event-player%::*} >= {_needed}:
+        loop all players in world of event-player:
+            send "%{@prefix}%%{@message-color}%Enough players are sleeping! Skipping night..." to loop-player
+        set time of world of event-player to day
+        delete {_sleeping::%world of event-player%::*}
+
+# Bed leave event
+on bed leave:
+    remove event-player from {_sleeping::%world of event-player%::*}
+
+    set {_online} to 0
+    loop all players in world of event-player:
+        if {is-afk::%uuid of loop-player%} is not true:
+            add 1 to {_online}
+
+    set {_needed} to ceiling({_online} / 2)
+
+    loop all players in world of event-player:
+        send "%{@prefix}%&c%event-player% &7left bed. &f%size of {_sleeping::%world of event-player%::*}%&7/&f%{_online}% sleeping. Need &e%{_needed}%." to loop-player
