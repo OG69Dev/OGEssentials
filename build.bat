@@ -64,3 +64,4 @@ if %errorlevel% equ 0 (
     echo Please check the error messages above
     exit /b 1
 )
+PAUSE

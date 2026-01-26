@@ -1,7 +1,9 @@
 package dev.og69.ogessentials;
 
 import dev.og69.ogessentials.hooks.CoreProtectHook;
+import dev.og69.ogessentials.update.UpdateChecker;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.server.PluginEnableEvent;
@@ -33,6 +35,9 @@ public class OGEssentials extends JavaPlugin implements Listener {
     private static boolean placeholderAPIHookLoaded = false;
     private int placeholderAPICheckTaskId = -1;
     
+    private UpdateChecker updateChecker;
+    private int updateCheckTaskId = -1;
+    
     @Override
     public void onEnable() {
         instance = this;
@@ -56,6 +61,9 @@ public class OGEssentials extends JavaPlugin implements Listener {
         // Register event listeners
         registerListeners();
         
+        // Initialize update checker
+        initializeUpdateChecker();
+        
         getLogger().info("OG-Essentials has been enabled!");
         getLogger().info("Version: " + getDescription().getVersion());
     }
@@ -66,6 +74,12 @@ public class OGEssentials extends JavaPlugin implements Listener {
         if (placeholderAPICheckTaskId != -1) {
             Bukkit.getScheduler().cancelTask(placeholderAPICheckTaskId);
             placeholderAPICheckTaskId = -1;
+        }
+        
+        // Cancel update check task if running
+        if (updateCheckTaskId != -1) {
+            Bukkit.getScheduler().cancelTask(updateCheckTaskId);
+            updateCheckTaskId = -1;
         }
         
         // Disable hooks
@@ -227,6 +241,15 @@ public class OGEssentials extends JavaPlugin implements Listener {
             give3x3PickCommand.setExecutor(executor);
             give3x3PickCommand.setTabCompleter(executor);
         }
+        
+        // Register ogessentials command (with update subcommand)
+        org.bukkit.command.PluginCommand ogessentialsCommand = getCommand("ogessentials");
+        if (ogessentialsCommand != null) {
+            dev.og69.ogessentials.commands.OGEssentialsCommand executor = 
+                new dev.og69.ogessentials.commands.OGEssentialsCommand();
+            ogessentialsCommand.setExecutor(executor);
+            ogessentialsCommand.setTabCompleter(executor);
+        }
     }
     
     /**
@@ -241,6 +264,82 @@ public class OGEssentials extends JavaPlugin implements Listener {
     }
     
     /**
+     * Initialize the update checker if enabled in config.
+     */
+    private void initializeUpdateChecker() {
+        if (!getConfig().getBoolean("updater.enabled", true)) {
+            return;
+        }
+        
+        updateChecker = new UpdateChecker(this, getDescription().getVersion(), "OG69Dev", "OGEssentials");
+        
+        // Check for updates on startup
+        updateChecker.checkForUpdates(this::handleUpdateResult);
+        
+        // Schedule periodic checks
+        int intervalHours = getConfig().getInt("updater.check-interval", 24);
+        if (intervalHours > 0) {
+            long intervalTicks = intervalHours * 3600 * 20L; // Convert hours to ticks (1 hour = 3600 seconds = 72000 ticks)
+            updateCheckTaskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(
+                this,
+                () -> updateChecker.checkForUpdates(this::handleUpdateResult),
+                intervalTicks,
+                intervalTicks
+            );
+        }
+    }
+    
+    /**
+     * Handle update check results.
+     * 
+     * @param result The update result
+     */
+    private void handleUpdateResult(UpdateChecker.UpdateResult result) {
+        if (result == null) {
+            return;
+        }
+        
+        if (!result.isSuccess()) {
+            // Only log errors to console, don't spam admins
+            getLogger().warning("[UpdateChecker] " + result.getErrorMessage());
+            return;
+        }
+        
+        if (result.isUpdateAvailable()) {
+            // Log to console
+            getLogger().info("=========================================");
+            getLogger().info("A new version of OG-Essentials is available!");
+            getLogger().info("Current version: " + getDescription().getVersion());
+            getLogger().info("Latest version: " + result.getLatestVersion());
+            getLogger().info("Download: " + result.getDownloadUrl());
+            getLogger().info("=========================================");
+            
+            // Notify admins if enabled
+            if (getConfig().getBoolean("updater.notify-admins", true)) {
+                String message = ChatColor.translateAlternateColorCodes('&',
+                    "&7[&bOG-Essentials&7] &eA new version is available: &a" + result.getLatestVersion() +
+                    " &7(current: &c" + getDescription().getVersion() + "&7)");
+                
+                Bukkit.getOnlinePlayers().stream()
+                    .filter(player -> player.hasPermission("ogessentials.updater.notify"))
+                    .forEach(player -> player.sendMessage(message));
+            }
+        } else {
+            // Already on latest version
+            getLogger().info("[UpdateChecker] You are running the latest version (" + getDescription().getVersion() + ")");
+        }
+    }
+    
+    /**
+     * Get the update checker instance.
+     * 
+     * @return The update checker, or null if disabled
+     */
+    public UpdateChecker getUpdateChecker() {
+        return updateChecker;
+    }
+    
+    /**
      * Reload the plugin configuration.
      */
     @Override
@@ -251,5 +350,12 @@ public class OGEssentials extends JavaPlugin implements Listener {
         disableHooks();
         placeholderAPIHookLoaded = false;
         initializeHooks();
+        
+        // Reinitialize update checker if config changed
+        if (updateCheckTaskId != -1) {
+            Bukkit.getScheduler().cancelTask(updateCheckTaskId);
+            updateCheckTaskId = -1;
+        }
+        initializeUpdateChecker();
     }
 }

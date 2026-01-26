@@ -48,3 +48,12 @@ hooks:
   # Logs block changes from custom enchants and tools
   coreprotect:
     enabled: true
+
+# Update Checker Configuration
+updater:
+  # Enable or disable update checking
+  enabled: true
+  # Check interval in hours (0 = only check on startup)
+  check-interval: 24
+  # Notify admins with ogessentials.updater.notify permission
+  notify-admins: true
