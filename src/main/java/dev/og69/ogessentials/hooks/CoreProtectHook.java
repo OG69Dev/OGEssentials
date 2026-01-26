@@ -8,51 +8,96 @@ import org.bukkit.plugin.Plugin;
 
 /**
  * Optional hook for CoreProtect integration.
- * Provides block change logging functionality.
+ * Provides block change logging functionality using CoreProtect API v10+.
  * 
  * This hook is optional - the plugin works fully without CoreProtect.
  * If CoreProtect is not installed, all methods will return false and do nothing.
+ * 
+ * Based on CoreProtect API v10 documentation:
+ * https://docs.coreprotect.net/api/version/v10/
  */
 public class CoreProtectHook {
     
     private static boolean enabled = false;
     private static Object coreProtectAPI = null;
+    private static boolean hasBlockStateMethods = false; // API v10+ has thread-safe BlockState methods
     
     /**
      * Initialize the CoreProtect hook.
-     * Checks if CoreProtect is installed and enabled.
+     * Checks if CoreProtect is installed, enabled, and API version is >= 10.
      * 
      * @return true if CoreProtect is available and hook is enabled, false otherwise
      */
     public static boolean initialize() {
-        Plugin coreProtect = Bukkit.getPluginManager().getPlugin("CoreProtect");
+        Plugin coreProtectPlugin = Bukkit.getPluginManager().getPlugin("CoreProtect");
         
-        if (coreProtect == null || !coreProtect.isEnabled()) {
+        if (coreProtectPlugin == null || !coreProtectPlugin.isEnabled()) {
             enabled = false;
+            coreProtectAPI = null;
             return false;
         }
         
         try {
-            // Try to get the CoreProtect API
-            Class<?> apiClass = Class.forName("net.coreprotect.CoreProtect");
-            Class<?> apiGetterClass = Class.forName("net.coreprotect.CoreProtectAPI");
-            
-            // Get the API instance
-            java.lang.reflect.Method getAPIMethod = apiGetterClass.getMethod("getAPI");
-            coreProtectAPI = getAPIMethod.invoke(null);
-            
-            if (coreProtectAPI != null) {
-                enabled = true;
-                return true;
+            // Check if plugin is CoreProtect instance
+            Class<?> coreProtectClass = Class.forName("net.coreprotect.CoreProtect");
+            if (!coreProtectClass.isInstance(coreProtectPlugin)) {
+                enabled = false;
+                coreProtectAPI = null;
+                return false;
             }
+            
+            // Get API instance via getAPI() method on plugin instance
+            java.lang.reflect.Method getAPIMethod = coreProtectClass.getMethod("getAPI");
+            Object api = getAPIMethod.invoke(coreProtectPlugin);
+            
+            if (api == null) {
+                enabled = false;
+                coreProtectAPI = null;
+                return false;
+            }
+            
+            // Check if API is enabled
+            java.lang.reflect.Method isEnabledMethod = api.getClass().getMethod("isEnabled");
+            Boolean apiEnabled = (Boolean) isEnabledMethod.invoke(api);
+            if (apiEnabled == null || !apiEnabled) {
+                enabled = false;
+                coreProtectAPI = null;
+                return false;
+            }
+            
+            // Check API version (must be >= 10)
+            java.lang.reflect.Method apiVersionMethod = api.getClass().getMethod("APIVersion");
+            Integer apiVersion = (Integer) apiVersionMethod.invoke(api);
+            if (apiVersion == null || apiVersion < 10) {
+                enabled = false;
+                coreProtectAPI = null;
+                return false;
+            }
+            
+            // Check if BlockState methods are available (API v10+)
+            try {
+                api.getClass().getMethod("logRemoval", String.class, BlockState.class);
+                api.getClass().getMethod("logPlacement", String.class, BlockState.class);
+                hasBlockStateMethods = true;
+            } catch (NoSuchMethodException e) {
+                hasBlockStateMethods = false;
+            }
+            
+            coreProtectAPI = api;
+            enabled = true;
+            return true;
+            
+        } catch (ClassNotFoundException e) {
+            // CoreProtect classes not available
+            enabled = false;
+            coreProtectAPI = null;
+            return false;
         } catch (Exception e) {
             // CoreProtect API not available or incompatible version
             enabled = false;
+            coreProtectAPI = null;
             return false;
         }
-        
-        enabled = false;
-        return false;
     }
     
     /**
@@ -65,29 +110,33 @@ public class CoreProtectHook {
     }
     
     /**
-     * Log a block change to CoreProtect.
-     * This method does nothing if CoreProtect is not available.
+     * Log a block removal to CoreProtect.
+     * Uses thread-safe BlockState method if available (API v10+), otherwise falls back to location-based method.
      * 
-     * @param player The player who caused the block change
-     * @param block The block that was changed
-     * @param oldState The previous state of the block (before change)
-     * @return true if the block change was logged successfully, false otherwise
+     * @param user The username to log as having removed the block
+     * @param blockState The BlockState of the block before removal (thread-safe method)
+     * @return true if the block removal was logged successfully, false otherwise
      */
-    public static boolean logBlockChange(Player player, Block block, BlockState oldState) {
-        if (!enabled || coreProtectAPI == null) {
+    public static boolean logRemoval(String user, BlockState blockState) {
+        if (!enabled || coreProtectAPI == null || blockState == null) {
             return false;
         }
         
         try {
-            // Use reflection to call CoreProtect API methods
-            // CoreProtect API: logRemoval(player, location, type, data)
-            // or logPlacement(player, location, type, data)
-            
             Class<?> apiClass = coreProtectAPI.getClass();
             
-            // Determine if this is a removal or placement
-            if (oldState != null && oldState.getType() != org.bukkit.Material.AIR) {
-                // Log removal
+            if (hasBlockStateMethods) {
+                // Use thread-safe BlockState method (API v10+)
+                java.lang.reflect.Method logRemoval = apiClass.getMethod(
+                    "logRemoval",
+                    String.class,
+                    BlockState.class
+                );
+                
+                Boolean result = (Boolean) logRemoval.invoke(coreProtectAPI, user, blockState);
+                return result != null && result;
+            } else {
+                // Fallback to location-based method
                 java.lang.reflect.Method logRemoval = apiClass.getMethod(
                     "logRemoval",
                     String.class,
@@ -96,17 +145,49 @@ public class CoreProtectHook {
                     org.bukkit.block.data.BlockData.class
                 );
                 
-                logRemoval.invoke(
+                Boolean result = (Boolean) logRemoval.invoke(
                     coreProtectAPI,
-                    player.getName(),
-                    block.getLocation(),
-                    oldState.getType(),
-                    oldState.getBlockData()
+                    user,
+                    blockState.getLocation(),
+                    blockState.getType(),
+                    blockState.getBlockData()
                 );
+                return result != null && result;
             }
+        } catch (Exception e) {
+            // CoreProtect API call failed
+            return false;
+        }
+    }
+    
+    /**
+     * Log a block placement to CoreProtect.
+     * Uses thread-safe BlockState method if available (API v10+), otherwise falls back to location-based method.
+     * 
+     * @param user The username to log as having placed the block
+     * @param blockState The BlockState of the block after placement (thread-safe method)
+     * @return true if the block placement was logged successfully, false otherwise
+     */
+    public static boolean logPlacement(String user, BlockState blockState) {
+        if (!enabled || coreProtectAPI == null || blockState == null) {
+            return false;
+        }
+        
+        try {
+            Class<?> apiClass = coreProtectAPI.getClass();
             
-            // Log placement if new block is not air
-            if (block.getType() != org.bukkit.Material.AIR) {
+            if (hasBlockStateMethods) {
+                // Use thread-safe BlockState method (API v10+)
+                java.lang.reflect.Method logPlacement = apiClass.getMethod(
+                    "logPlacement",
+                    String.class,
+                    BlockState.class
+                );
+                
+                Boolean result = (Boolean) logPlacement.invoke(coreProtectAPI, user, blockState);
+                return result != null && result;
+            } else {
+                // Fallback to location-based method
                 java.lang.reflect.Method logPlacement = apiClass.getMethod(
                     "logPlacement",
                     String.class,
@@ -115,16 +196,15 @@ public class CoreProtectHook {
                     org.bukkit.block.data.BlockData.class
                 );
                 
-                logPlacement.invoke(
+                Boolean result = (Boolean) logPlacement.invoke(
                     coreProtectAPI,
-                    player.getName(),
-                    block.getLocation(),
-                    block.getType(),
-                    block.getBlockData()
+                    user,
+                    blockState.getLocation(),
+                    blockState.getType(),
+                    blockState.getBlockData()
                 );
+                return result != null && result;
             }
-            
-            return true;
         } catch (Exception e) {
             // CoreProtect API call failed
             return false;
@@ -133,19 +213,20 @@ public class CoreProtectHook {
     
     /**
      * Log a block break to CoreProtect.
-     * Convenience method for logging block breaks.
+     * This method logs the removal of a block using its state before it was broken.
      * 
      * @param player The player who broke the block
-     * @param block The block that was broken
+     * @param block The block that was broken (after breaking, will be AIR)
+     * @param oldState The BlockState of the block before it was broken (must be captured before breaking)
      * @return true if the block break was logged successfully, false otherwise
      */
-    public static boolean logBlockBreak(Player player, Block block) {
-        if (!enabled || coreProtectAPI == null) {
+    public static boolean logBlockBreak(Player player, Block block, BlockState oldState) {
+        if (!enabled || coreProtectAPI == null || oldState == null) {
             return false;
         }
         
-        BlockState oldState = block.getState();
-        return logBlockChange(player, block, oldState);
+        // Use the oldState to log the removal
+        return logRemoval(player.getName(), oldState);
     }
     
     /**
@@ -154,5 +235,6 @@ public class CoreProtectHook {
     public static void disable() {
         enabled = false;
         coreProtectAPI = null;
+        hasBlockStateMethods = false;
     }
 }

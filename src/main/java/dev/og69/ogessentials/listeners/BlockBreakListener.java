@@ -144,9 +144,9 @@ public class BlockBreakListener implements Listener {
         // Use the tool to break the block
         block.breakNaturally(tool);
         
-        // Log to CoreProtect if available (after breaking)
+        // Log to CoreProtect if available (pass oldState captured before breaking)
         if (CoreProtectHook.isEnabled()) {
-            CoreProtectHook.logBlockBreak(player, block);
+            CoreProtectHook.logBlockBreak(player, block, oldState);
         }
     }
 }

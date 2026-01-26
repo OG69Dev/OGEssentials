@@ -37,6 +37,7 @@ public class OGEssentials extends JavaPlugin implements Listener {
     
     private UpdateChecker updateChecker;
     private int updateCheckTaskId = -1;
+    private boolean isInitialStartup = true;
     
     @Override
     public void onEnable() {
@@ -54,6 +55,9 @@ public class OGEssentials extends JavaPlugin implements Listener {
         
         // Schedule a delayed check for PlaceholderAPI in case it loads after us
         schedulePlaceholderAPICheck();
+        
+        // Initialize NamespacedKey for 3x3 pickaxe PersistentDataContainer
+        dev.og69.ogessentials.commands.Give3x3PickCommand.initializeNamespacedKey(this);
         
         // Register commands
         registerCommands();
@@ -191,7 +195,9 @@ public class OGEssentials extends JavaPlugin implements Listener {
         
         // Initialize CoreProtect hook (rarely used)
         if (getConfig().getBoolean("hooks.coreprotect.enabled", true)) {
-            if (CoreProtectHook.initialize()) {
+            if (CoreProtectHook.isEnabled()) {
+                // Already initialized, skip logging
+            } else if (CoreProtectHook.initialize()) {
                 getLogger().info("CoreProtect hook enabled!");
             } else {
                 getLogger().info("CoreProtect not found - block logging will not be available.");
@@ -325,8 +331,12 @@ public class OGEssentials extends JavaPlugin implements Listener {
                     .forEach(player -> player.sendMessage(message));
             }
         } else {
-            // Already on latest version
-            getLogger().info("[UpdateChecker] You are running the latest version (" + getDescription().getVersion() + ")");
+            // Already on latest version - only log on initial startup, not on reload
+            // (isInitialStartup flag is handled in initializeUpdateChecker now)
+            if (isInitialStartup) {
+                getLogger().info("[UpdateChecker] You are running the latest version (" + getDescription().getVersion() + ")");
+                isInitialStartup = false;
+            }
         }
     }
     
@@ -352,6 +362,7 @@ public class OGEssentials extends JavaPlugin implements Listener {
         initializeHooks();
         
         // Reinitialize update checker if config changed
+        // Note: isInitialStartup will be false on reload, so "latest version" message won't be logged
         if (updateCheckTaskId != -1) {
             Bukkit.getScheduler().cancelTask(updateCheckTaskId);
             updateCheckTaskId = -1;
