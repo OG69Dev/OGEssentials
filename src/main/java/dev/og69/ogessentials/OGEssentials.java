@@ -1,6 +1,18 @@
 package dev.og69.ogessentials;
 
 import dev.og69.ogessentials.hooks.CoreProtectHook;
+import dev.og69.ogessentials.hooks.SkriptHook;
+import dev.og69.ogessentials.listeners.AfkListener;
+import dev.og69.ogessentials.listeners.KeepInventoryListener;
+import dev.og69.ogessentials.listeners.SleepListener;
+import dev.og69.ogessentials.managers.AfkManager;
+import dev.og69.ogessentials.managers.HomeManager;
+import dev.og69.ogessentials.managers.KeepInventoryManager;
+import dev.og69.ogessentials.managers.NameTagManager;
+import dev.og69.ogessentials.managers.TpaManager;
+import dev.og69.ogessentials.storage.DatabaseManager;
+import dev.og69.ogessentials.tasks.AfkCheckTask;
+import dev.og69.ogessentials.tasks.TpaExpiryTask;
 import dev.og69.ogessentials.update.UpdateChecker;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -39,6 +51,24 @@ public class OGEssentials extends JavaPlugin implements Listener {
     private int updateCheckTaskId = -1;
     private boolean isInitialStartup = true;
     
+    // AFK and Half-Sleep system
+    private NameTagManager nameTagManager;
+    private AfkManager afkManager;
+    private SleepListener sleepListener;
+    private int afkCheckTaskId = -1;
+    
+    // Keep Inventory system
+    private KeepInventoryManager keepInventoryManager;
+    private KeepInventoryListener keepInventoryListener;
+    
+    // Database and Homes system
+    private DatabaseManager databaseManager;
+    private HomeManager homeManager;
+    
+    // TPA system
+    private TpaManager tpaManager;
+    private int tpaExpiryTaskId = -1;
+    
     @Override
     public void onEnable() {
         instance = this;
@@ -58,6 +88,18 @@ public class OGEssentials extends JavaPlugin implements Listener {
         
         // Initialize NamespacedKey for 3x3 pickaxe PersistentDataContainer
         dev.og69.ogessentials.commands.Give3x3PickCommand.initializeNamespacedKey(this);
+        
+        // Initialize AFK and Half-Sleep managers
+        initializeAfkSystem();
+        
+        // Initialize Keep Inventory system
+        initializeKeepInventorySystem();
+        
+        // Initialize Database and Homes system
+        initializeHomesSystem();
+        
+        // Initialize TPA system
+        initializeTpaSystem();
         
         // Register commands
         registerCommands();
@@ -85,6 +127,18 @@ public class OGEssentials extends JavaPlugin implements Listener {
             Bukkit.getScheduler().cancelTask(updateCheckTaskId);
             updateCheckTaskId = -1;
         }
+        
+        // Clean up AFK and Half-Sleep system
+        cleanupAfkSystem();
+        
+        // Clean up Keep Inventory system
+        cleanupKeepInventorySystem();
+        
+        // Clean up TPA system
+        cleanupTpaSystem();
+        
+        // Clean up Homes system and database
+        cleanupHomesSystem();
         
         // Disable hooks
         disableHooks();
@@ -205,6 +259,19 @@ public class OGEssentials extends JavaPlugin implements Listener {
         } else {
             getLogger().info("CoreProtect hook disabled in config.");
         }
+        
+        // Initialize Skript hook
+        if (getConfig().getBoolean("hooks.skript.enabled", true)) {
+            if (SkriptHook.isEnabled()) {
+                // Already initialized, skip logging
+            } else if (SkriptHook.initialize()) {
+                getLogger().info("Skript hook enabled! Variables API is available.");
+            } else {
+                getLogger().info("Skript not found - Skript variable integration will not be available.");
+            }
+        } else {
+            getLogger().info("Skript hook disabled in config.");
+        }
     }
     
     /**
@@ -225,6 +292,7 @@ public class OGEssentials extends JavaPlugin implements Listener {
         }
         
         CoreProtectHook.disable();
+        SkriptHook.disable();
     }
     
     /**
@@ -256,6 +324,63 @@ public class OGEssentials extends JavaPlugin implements Listener {
             ogessentialsCommand.setExecutor(executor);
             ogessentialsCommand.setTabCompleter(executor);
         }
+        
+        // Register AFK command
+        org.bukkit.command.PluginCommand afkCommand = getCommand("afk");
+        if (afkCommand != null) {
+            afkCommand.setExecutor(new dev.og69.ogessentials.commands.AfkCommand(this));
+        }
+        
+        // Register Keep Inventory command
+        org.bukkit.command.PluginCommand keepInvCommand = getCommand("keepinventory");
+        if (keepInvCommand != null) {
+            keepInvCommand.setExecutor(new dev.og69.ogessentials.commands.KeepInventoryCommand(this));
+        }
+        
+        // Register Home commands
+        org.bukkit.command.PluginCommand setHomeCmd = getCommand("sethome");
+        if (setHomeCmd != null) {
+            dev.og69.ogessentials.commands.SetHomeCommand executor = new dev.og69.ogessentials.commands.SetHomeCommand(this);
+            setHomeCmd.setExecutor(executor);
+            setHomeCmd.setTabCompleter(executor);
+        }
+        
+        org.bukkit.command.PluginCommand homeCmd = getCommand("home");
+        if (homeCmd != null) {
+            dev.og69.ogessentials.commands.HomeCommand executor = new dev.og69.ogessentials.commands.HomeCommand(this);
+            homeCmd.setExecutor(executor);
+            homeCmd.setTabCompleter(executor);
+        }
+        
+        org.bukkit.command.PluginCommand delHomeCmd = getCommand("delhome");
+        if (delHomeCmd != null) {
+            dev.og69.ogessentials.commands.DelHomeCommand executor = new dev.og69.ogessentials.commands.DelHomeCommand(this);
+            delHomeCmd.setExecutor(executor);
+            delHomeCmd.setTabCompleter(executor);
+        }
+        
+        org.bukkit.command.PluginCommand homesCmd = getCommand("homes");
+        if (homesCmd != null) {
+            homesCmd.setExecutor(new dev.og69.ogessentials.commands.HomesCommand(this));
+        }
+        
+        // Register TPA commands
+        org.bukkit.command.PluginCommand tpaCmd = getCommand("tpa");
+        if (tpaCmd != null) {
+            dev.og69.ogessentials.commands.TpaCommand executor = new dev.og69.ogessentials.commands.TpaCommand(this);
+            tpaCmd.setExecutor(executor);
+            tpaCmd.setTabCompleter(executor);
+        }
+        
+        org.bukkit.command.PluginCommand tpAcceptCmd = getCommand("tpaccept");
+        if (tpAcceptCmd != null) {
+            tpAcceptCmd.setExecutor(new dev.og69.ogessentials.commands.TpAcceptCommand(this));
+        }
+        
+        org.bukkit.command.PluginCommand tpDenyCmd = getCommand("tpdeny");
+        if (tpDenyCmd != null) {
+            tpDenyCmd.setExecutor(new dev.og69.ogessentials.commands.TpDenyCommand(this));
+        }
     }
     
     /**
@@ -267,6 +392,148 @@ public class OGEssentials extends JavaPlugin implements Listener {
             new dev.og69.ogessentials.listeners.BlockBreakListener(this),
             this
         );
+        
+        // Register AFK listener
+        getServer().getPluginManager().registerEvents(
+            new AfkListener(afkManager),
+            this
+        );
+        
+        // Register Sleep listener for half-sleep system
+        sleepListener = new SleepListener(this, afkManager);
+        getServer().getPluginManager().registerEvents(sleepListener, this);
+    }
+    
+    /**
+     * Initialize the AFK and Half-Sleep system.
+     */
+    private void initializeAfkSystem() {
+        // Initialize managers
+        nameTagManager = new NameTagManager();
+        afkManager = new AfkManager(this, nameTagManager);
+        
+        // Start AFK check task (runs every 60 seconds = 1200 ticks)
+        afkCheckTaskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(
+            this,
+            new AfkCheckTask(afkManager, this),
+            1200L, // Initial delay: 60 seconds
+            1200L  // Repeat interval: 60 seconds
+        );
+        
+        getLogger().info("AFK and Half-Sleep system initialized!");
+    }
+    
+    /**
+     * Clean up the AFK and Half-Sleep system.
+     */
+    private void cleanupAfkSystem() {
+        // Cancel AFK check task
+        if (afkCheckTaskId != -1) {
+            Bukkit.getScheduler().cancelTask(afkCheckTaskId);
+            afkCheckTaskId = -1;
+        }
+        
+        // Clean up managers
+        if (afkManager != null) {
+            afkManager.cleanup();
+        }
+        if (nameTagManager != null) {
+            nameTagManager.cleanup();
+        }
+        if (sleepListener != null) {
+            sleepListener.cleanup();
+        }
+    }
+    
+    /**
+     * Initialize the Keep Inventory system.
+     */
+    private void initializeKeepInventorySystem() {
+        // Check if feature is enabled in config
+        if (!getConfig().getBoolean("keep-inventory.enabled", true)) {
+            getLogger().info("Keep Inventory system disabled in config.");
+            return;
+        }
+        
+        // Initialize manager (loads data from file)
+        keepInventoryManager = new KeepInventoryManager(this);
+        
+        // Initialize and register listener
+        keepInventoryListener = new KeepInventoryListener(this, keepInventoryManager);
+        getServer().getPluginManager().registerEvents(keepInventoryListener, this);
+        
+        getLogger().info("Keep Inventory system initialized!");
+    }
+    
+    /**
+     * Clean up the Keep Inventory system.
+     */
+    private void cleanupKeepInventorySystem() {
+        if (keepInventoryListener != null) {
+            keepInventoryListener.cleanup();
+        }
+        if (keepInventoryManager != null) {
+            keepInventoryManager.cleanup();
+        }
+    }
+    
+    /**
+     * Initialize the Database and Homes system.
+     */
+    private void initializeHomesSystem() {
+        // Initialize database
+        databaseManager = new DatabaseManager(this);
+        if (!databaseManager.initialize()) {
+            getLogger().severe("Failed to initialize database! Homes system will not be available.");
+            return;
+        }
+        
+        // Initialize home manager
+        homeManager = new HomeManager(this, databaseManager);
+        
+        getLogger().info("Homes system initialized!");
+    }
+    
+    /**
+     * Clean up the Homes system and database.
+     */
+    private void cleanupHomesSystem() {
+        if (databaseManager != null) {
+            databaseManager.close();
+        }
+    }
+    
+    /**
+     * Initialize the TPA system.
+     */
+    private void initializeTpaSystem() {
+        // Initialize TPA manager
+        tpaManager = new TpaManager(this);
+        
+        // Start TPA expiry check task (runs every 5 seconds = 100 ticks)
+        tpaExpiryTaskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(
+            this,
+            new TpaExpiryTask(tpaManager),
+            100L, // Initial delay: 5 seconds
+            100L  // Repeat interval: 5 seconds
+        );
+        
+        getLogger().info("TPA system initialized!");
+    }
+    
+    /**
+     * Clean up the TPA system.
+     */
+    private void cleanupTpaSystem() {
+        // Cancel TPA expiry task
+        if (tpaExpiryTaskId != -1) {
+            Bukkit.getScheduler().cancelTask(tpaExpiryTaskId);
+            tpaExpiryTaskId = -1;
+        }
+        
+        if (tpaManager != null) {
+            tpaManager.cleanup();
+        }
     }
     
     /**
@@ -347,6 +614,60 @@ public class OGEssentials extends JavaPlugin implements Listener {
      */
     public UpdateChecker getUpdateChecker() {
         return updateChecker;
+    }
+    
+    /**
+     * Get the name tag manager instance.
+     * 
+     * @return The name tag manager
+     */
+    public NameTagManager getNameTagManager() {
+        return nameTagManager;
+    }
+    
+    /**
+     * Get the AFK manager instance.
+     * 
+     * @return The AFK manager
+     */
+    public AfkManager getAfkManager() {
+        return afkManager;
+    }
+    
+    /**
+     * Get the Keep Inventory manager instance.
+     * 
+     * @return The Keep Inventory manager, or null if disabled
+     */
+    public KeepInventoryManager getKeepInventoryManager() {
+        return keepInventoryManager;
+    }
+    
+    /**
+     * Get the database manager instance.
+     * 
+     * @return The database manager, or null if not initialized
+     */
+    public DatabaseManager getDatabaseManager() {
+        return databaseManager;
+    }
+    
+    /**
+     * Get the home manager instance.
+     * 
+     * @return The home manager, or null if not initialized
+     */
+    public HomeManager getHomeManager() {
+        return homeManager;
+    }
+    
+    /**
+     * Get the TPA manager instance.
+     * 
+     * @return The TPA manager
+     */
+    public TpaManager getTpaManager() {
+        return tpaManager;
     }
     
     /**

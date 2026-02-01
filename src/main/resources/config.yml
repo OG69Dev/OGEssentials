@@ -30,6 +30,11 @@ command-blocker:
     - pardon
     - give
 
+# TPA Configuration
+tpa:
+  # Request expiry time in seconds (default: 60)
+  expiry: 60
+
 # Keep Inventory Configuration
 keep-inventory:
   # Enable or disable the keep inventory feature
@@ -47,6 +52,11 @@ hooks:
   # CoreProtect Hook
   # Logs block changes from custom enchants and tools
   coreprotect:
+    enabled: true
+  
+  # Skript Hook
+  # Provides integration with Skript variables for migration and future features
+  skript:
     enabled: true
 
 # Update Checker Configuration

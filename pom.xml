@@ -6,7 +6,7 @@
 
     <groupId>dev.og69</groupId>
     <artifactId>ogessentials</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
     <packaging>jar</packaging>
 
     <name>OG-Essentials</name>
@@ -41,6 +41,12 @@
             <id>coreprotect</id>
             <url>https://maven.playpro.com</url>
         </repository>
+        <!-- Skript Repository -->
+        <repository>
+            <id>skript-releases</id>
+            <name>Skript Repository</name>
+            <url>https://repo.skriptlang.org/releases</url>
+        </repository>
     </repositories>
 
     <dependencies>
@@ -63,6 +69,13 @@
             <groupId>net.coreprotect</groupId>
             <artifactId>coreprotect</artifactId>
             <version>22.4</version>
+            <scope>provided</scope>
+        </dependency>
+        <!-- Skript (soft dependency) -->
+        <dependency>
+            <groupId>com.github.SkriptLang</groupId>
+            <artifactId>Skript</artifactId>
+            <version>2.9.4</version>
             <scope>provided</scope>
         </dependency>
         <!-- Gson for JSON parsing -->
