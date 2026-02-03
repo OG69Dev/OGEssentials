@@ -9,6 +9,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.GameRule;
 import org.bukkit.event.entity.PlayerDeathEvent;
 
 import java.util.HashMap;
@@ -73,6 +74,13 @@ public class KeepInventoryListener implements Listener {
     public void onPlayerDeath(PlayerDeathEvent event) {
         Player victim = event.getEntity();
         UUID victimId = victim.getUniqueId();
+        
+        // Check if server keepInventory gamerule is enabled
+        // If it is, let vanilla handle it and don't interfere
+        Boolean keepInventoryRule = victim.getWorld().getGameRuleValue(GameRule.KEEP_INVENTORY);
+        if (keepInventoryRule != null && keepInventoryRule) {
+            return;
+        }
         
         // Check if victim has keep inventory enabled
         boolean victimHasKeepInv = manager.isEnabled(victimId);

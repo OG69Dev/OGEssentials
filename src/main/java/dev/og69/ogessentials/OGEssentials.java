@@ -10,6 +10,7 @@ import dev.og69.ogessentials.managers.HomeManager;
 import dev.og69.ogessentials.managers.KeepInventoryManager;
 import dev.og69.ogessentials.managers.NameTagManager;
 import dev.og69.ogessentials.managers.TpaManager;
+import dev.og69.ogessentials.managers.BackManager;
 import dev.og69.ogessentials.storage.DatabaseManager;
 import dev.og69.ogessentials.tasks.AfkCheckTask;
 import dev.og69.ogessentials.tasks.TpaExpiryTask;
@@ -68,6 +69,9 @@ public class OGEssentials extends JavaPlugin implements Listener {
     // TPA system
     private TpaManager tpaManager;
     private int tpaExpiryTaskId = -1;
+
+    // Back system
+    private BackManager backManager;
     
     @Override
     public void onEnable() {
@@ -100,6 +104,10 @@ public class OGEssentials extends JavaPlugin implements Listener {
         
         // Initialize TPA system
         initializeTpaSystem();
+
+        // Initialize Back system
+        backManager = new BackManager();
+
         
         // Register commands
         registerCommands();
@@ -136,6 +144,10 @@ public class OGEssentials extends JavaPlugin implements Listener {
         
         // Clean up TPA system
         cleanupTpaSystem();
+
+        if (backManager != null) {
+            backManager.cleanup();
+        }
         
         // Clean up Homes system and database
         cleanupHomesSystem();
@@ -381,6 +393,26 @@ public class OGEssentials extends JavaPlugin implements Listener {
         if (tpDenyCmd != null) {
             tpDenyCmd.setExecutor(new dev.og69.ogessentials.commands.TpDenyCommand(this));
         }
+
+        // Register InvSee command
+        org.bukkit.command.PluginCommand invSeeCmd = getCommand("invsee");
+        if (invSeeCmd != null) {
+            invSeeCmd.setExecutor(new dev.og69.ogessentials.commands.InvSeeCommand(this));
+        }
+
+        // Register Fly command
+        org.bukkit.command.PluginCommand flyCmd = getCommand("fly");
+        if (flyCmd != null) {
+            flyCmd.setExecutor(new dev.og69.ogessentials.commands.FlyCommand(this));
+        }
+
+        // Register Back command
+
+        // Register Back command
+        org.bukkit.command.PluginCommand backCmd = getCommand("back");
+        if (backCmd != null) {
+            backCmd.setExecutor(new dev.og69.ogessentials.commands.BackCommand(this));
+        }
     }
     
     /**
@@ -402,6 +434,24 @@ public class OGEssentials extends JavaPlugin implements Listener {
         // Register Sleep listener for half-sleep system
         sleepListener = new SleepListener(this, afkManager);
         getServer().getPluginManager().registerEvents(sleepListener, this);
+
+        // Register Teleport listener for /back
+        getServer().getPluginManager().registerEvents(
+            new dev.og69.ogessentials.listeners.TeleportListener(backManager),
+            this
+        );
+        
+        // Register Chat listener
+        getServer().getPluginManager().registerEvents(
+            new dev.og69.ogessentials.listeners.ChatListener(),
+            this
+        );
+
+        // Register InvSee listener
+        getServer().getPluginManager().registerEvents(
+            new dev.og69.ogessentials.listeners.InvSeeListener(),
+            this
+        );
     }
     
     /**
@@ -668,6 +718,15 @@ public class OGEssentials extends JavaPlugin implements Listener {
      */
     public TpaManager getTpaManager() {
         return tpaManager;
+    }
+
+    /**
+     * Get the Back manager instance.
+     *
+     * @return The Back manager
+     */
+    public BackManager getBackManager() {
+        return backManager;
     }
     
     /**

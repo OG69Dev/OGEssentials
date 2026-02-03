@@ -57,6 +57,24 @@ commands:
     permission: ogessentials.home
     aliases: [listhomes, myhomes]
   
+  back:
+    description: Teleport to your previous location
+    usage: /<command>
+    permission: ogessentials.back
+    aliases: [return]
+  
+  fly:
+    description: Toggle flight mode
+    usage: /<command> [player]
+    permission: ogessentials.fly
+    aliases: [flight]
+  
+  invsee:
+    description: View another player's inventory
+    usage: /<command> <player>
+    permission: ogessentials.invsee.view
+    aliases: [inv, seeinv]
+
   keepinventory:
     description: Toggle keep inventory mode
     usage: /<command>
@@ -95,6 +113,16 @@ permissions:
       ogessentials.updater.check: true
       ogessentials.updater.notify: true
       ogessentials.migrate: true
+      ogessentials.back: true
+      ogessentials.chat.color: true
+      ogessentials.invsee.view: true
+      ogessentials.invsee.modify: true
+      ogessentials.fly: true
+      ogessentials.reload: true
+  
+  ogessentials.chat.color:
+    description: Use color codes in chat
+    default: true
   
   ogessentials.tpa:
     description: Use TPA commands
@@ -111,7 +139,31 @@ permissions:
   ogessentials.migrate:
     description: Migrate data from Skript
     default: op
+
+  ogessentials.reload:
+    description: Reload plugin configuration
+    default: op
+
+  ogessentials.back:
+    description: Teleport to previous location
+    default: true
   
+  ogessentials.invsee.view:
+    description: View other players' inventories
+    default: op
+
+  ogessentials.invsee.modify:
+    description: Modify other players' inventories
+    default: op
+
+  ogessentials.fly:
+    description: Toggle your own flight mode
+    default: op
+  
+  ogessentials.fly.others:
+    description: Toggle others' flight mode
+    default: op
+
   ogessentials.keepinventory:
     description: Use keep inventory command
     default: true

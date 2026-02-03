@@ -47,9 +47,11 @@ public class OGEssentialsCommand implements CommandExecutor, TabCompleter {
                 return updateCheckCommand.onCommand(sender, command, label, updateArgs);
             case "migrate":
                 return handleMigrate(sender, args);
+            case "reload":
+                return handleReload(sender);
             default:
                 sender.sendMessage("§cUnknown subcommand: " + subcommand);
-                sender.sendMessage("§7Available subcommands: §eupdate§7, §emigrate");
+                sender.sendMessage("§7Available subcommands: §eupdate§7, §emigrate§7, §ereload");
                 return true;
         }
     }
@@ -146,6 +148,27 @@ public class OGEssentialsCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.GREEN + "Migration complete!");
         return true;
     }
+
+    /**
+     * Handle the reload subcommand.
+     */
+    private boolean handleReload(CommandSender sender) {
+        // Check permission
+        if (!sender.hasPermission("ogessentials.reload")) {
+            sender.sendMessage(ChatColor.RED + "You don't have permission to use this command.");
+            return true;
+        }
+
+        OGEssentials plugin = OGEssentials.getInstance();
+        if (plugin == null) {
+            sender.sendMessage(ChatColor.RED + "Plugin not available.");
+            return true;
+        }
+
+        plugin.reloadConfig();
+        sender.sendMessage(ChatColor.GREEN + "OG-Essentials configuration reloaded!");
+        return true;
+    }
     
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
@@ -158,6 +181,9 @@ public class OGEssentialsCommand implements CommandExecutor, TabCompleter {
             }
             if ("migrate".startsWith(partial) && sender.hasPermission("ogessentials.migrate")) {
                 completions.add("migrate");
+            }
+            if ("reload".startsWith(partial) && sender.hasPermission("ogessentials.reload")) {
+                completions.add("reload");
             }
             
             return completions;

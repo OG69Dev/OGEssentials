@@ -3,6 +3,7 @@ package dev.og69.ogessentials.commands;
 import dev.og69.ogessentials.OGEssentials;
 import dev.og69.ogessentials.managers.KeepInventoryManager;
 import org.bukkit.ChatColor;
+import org.bukkit.GameRule;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -40,6 +41,15 @@ public class KeepInventoryCommand implements CommandExecutor {
         KeepInventoryManager manager = plugin.getKeepInventoryManager();
         if (manager == null) {
             player.sendMessage(ChatColor.RED + "Keep Inventory system is not available.");
+            return true;
+        }
+
+        // Check global gamerule
+        Boolean keepInventoryRule = player.getWorld().getGameRuleValue(GameRule.KEEP_INVENTORY);
+        if (keepInventoryRule != null && keepInventoryRule) {
+            String prefix = ChatColor.translateAlternateColorCodes('&',
+                 plugin.getConfig().getString("prefix", "&7[&bOGSMP&7] &r"));
+            player.sendMessage(prefix + ChatColor.RED + "Global KeepInventory gamerule is enabled. You don't need to enable it individually.");
             return true;
         }
         
