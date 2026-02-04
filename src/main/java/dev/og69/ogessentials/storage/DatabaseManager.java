@@ -69,24 +69,40 @@ public class DatabaseManager {
     private void createTables() throws SQLException {
         try (Statement stmt = connection.createStatement()) {
             // Homes table
-            stmt.execute("""
-                CREATE TABLE IF NOT EXISTS homes (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    player_uuid TEXT NOT NULL,
-                    name TEXT NOT NULL,
-                    world TEXT NOT NULL,
-                    x REAL NOT NULL,
-                    y REAL NOT NULL,
-                    z REAL NOT NULL,
-                    yaw REAL DEFAULT 0,
-                    pitch REAL DEFAULT 0,
-                    created_at INTEGER DEFAULT (strftime('%s', 'now')),
-                    UNIQUE(player_uuid, name)
-                )
-                """);
+            stmt.execute("CREATE TABLE IF NOT EXISTS homes (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    "player_uuid TEXT NOT NULL," +
+                    "name TEXT NOT NULL," +
+                    "world TEXT NOT NULL," +
+                    "x REAL NOT NULL," +
+                    "y REAL NOT NULL," +
+                    "z REAL NOT NULL," +
+                    "yaw REAL DEFAULT 0," +
+                    "pitch REAL DEFAULT 0," +
+                    "created_at INTEGER DEFAULT (strftime('%s', 'now'))," +
+                    "UNIQUE(player_uuid, name)" +
+                    ")");
             
             // Create index for faster lookups
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_homes_player ON homes(player_uuid)");
+            
+            // Users table (for prefix/suffix)
+            stmt.execute("CREATE TABLE IF NOT EXISTS users (" +
+                    "uuid TEXT PRIMARY KEY," +
+                    "username TEXT," +
+                    "prefix TEXT DEFAULT ''," +
+                    "suffix TEXT DEFAULT ''" +
+                    ")");
+            
+            // User permissions table
+            stmt.execute("CREATE TABLE IF NOT EXISTS user_permissions (" +
+                    "uuid TEXT," +
+                    "permission TEXT," +
+                    "PRIMARY KEY (uuid, permission)" +
+                    ")");
+            
+            // Create index for faster permission lookups
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_user_permissions_uuid ON user_permissions(uuid)");
         }
     }
     

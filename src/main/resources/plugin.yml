@@ -98,6 +98,12 @@ commands:
     usage: /<command> [update]
     permission: ogessentials.updater.check
     aliases: [ogupdate]
+  
+  perm:
+    description: PEX-like permission management
+    usage: /<command> [user|reload]
+    permission: ogessentials.perm.user.view
+    aliases: [permission, permissions, pex]
 
 permissions:
   ogessentials.*:
@@ -112,7 +118,6 @@ permissions:
       ogessentials.3x3pick.give: true
       ogessentials.updater.check: true
       ogessentials.updater.notify: true
-      ogessentials.migrate: true
       ogessentials.back: true
       ogessentials.chat.color: true
       ogessentials.invsee.view: true
@@ -134,10 +139,6 @@ permissions:
   
   ogessentials.home.others:
     description: Access other players' homes
-    default: op
-  
-  ogessentials.migrate:
-    description: Migrate data from Skript
     default: op
 
   ogessentials.reload:
@@ -185,4 +186,29 @@ permissions:
   
   ogessentials.updater.notify:
     description: Receive update notifications in-game
+    default: op
+
+  ogessentials.perm.*:
+    description: Use all permission commands
+    default: op
+    children:
+      ogessentials.perm.user.manage: true
+      ogessentials.perm.user.view: true
+      ogessentials.perm.user.format: true
+      ogessentials.perm.reload: true
+
+  ogessentials.perm.user.manage:
+    description: Add or remove permissions from users
+    default: op
+
+  ogessentials.perm.user.view:
+    description: View user permissions and info
+    default: op
+
+  ogessentials.perm.user.format:
+    description: Set user prefix and suffix
+    default: op
+
+  ogessentials.perm.reload:
+    description: Reload the permission system
     default: op

@@ -11,6 +11,7 @@ import dev.og69.ogessentials.managers.KeepInventoryManager;
 import dev.og69.ogessentials.managers.NameTagManager;
 import dev.og69.ogessentials.managers.TpaManager;
 import dev.og69.ogessentials.managers.BackManager;
+import dev.og69.ogessentials.managers.PermissionManager;
 import dev.og69.ogessentials.storage.DatabaseManager;
 import dev.og69.ogessentials.tasks.AfkCheckTask;
 import dev.og69.ogessentials.tasks.TpaExpiryTask;
@@ -72,6 +73,9 @@ public class OGEssentials extends JavaPlugin implements Listener {
 
     // Back system
     private BackManager backManager;
+
+    // Permission system
+    private PermissionManager permissionManager;
     
     @Override
     public void onEnable() {
@@ -108,7 +112,8 @@ public class OGEssentials extends JavaPlugin implements Listener {
         // Initialize Back system
         backManager = new BackManager();
 
-        
+        // Initialize Permission system
+        permissionManager = new PermissionManager(this);
         // Register commands
         registerCommands();
         
@@ -147,6 +152,10 @@ public class OGEssentials extends JavaPlugin implements Listener {
 
         if (backManager != null) {
             backManager.cleanup();
+        }
+
+        if (permissionManager != null) {
+            permissionManager.cleanup();
         }
         
         // Clean up Homes system and database
@@ -277,9 +286,9 @@ public class OGEssentials extends JavaPlugin implements Listener {
             if (SkriptHook.isEnabled()) {
                 // Already initialized, skip logging
             } else if (SkriptHook.initialize()) {
-                getLogger().info("Skript hook enabled! Variables API is available.");
+                getLogger().info("Skript hook enabled!");
             } else {
-                getLogger().info("Skript not found - Skript variable integration will not be available.");
+                getLogger().info("Skript not found.");
             }
         } else {
             getLogger().info("Skript hook disabled in config.");
@@ -413,6 +422,15 @@ public class OGEssentials extends JavaPlugin implements Listener {
         if (backCmd != null) {
             backCmd.setExecutor(new dev.og69.ogessentials.commands.BackCommand(this));
         }
+
+        // Register Permission command
+        org.bukkit.command.PluginCommand permCmd = getCommand("perm");
+        if (permCmd != null) {
+            dev.og69.ogessentials.commands.PermissionCommand permissionCommand = 
+                new dev.og69.ogessentials.commands.PermissionCommand(this, permissionManager);
+            permCmd.setExecutor(permissionCommand);
+            permCmd.setTabCompleter(permissionCommand);
+        }
     }
     
     /**
@@ -450,6 +468,18 @@ public class OGEssentials extends JavaPlugin implements Listener {
         // Register InvSee listener
         getServer().getPluginManager().registerEvents(
             new dev.og69.ogessentials.listeners.InvSeeListener(),
+            this
+        );
+
+        // Register Disabled Commands listener
+        getServer().getPluginManager().registerEvents(
+            new dev.og69.ogessentials.listeners.DisabledCommandsListener(this),
+            this
+        );
+
+        // Register Permission listener
+        getServer().getPluginManager().registerEvents(
+            new dev.og69.ogessentials.listeners.PermissionListener(permissionManager),
             this
         );
     }
@@ -727,6 +757,15 @@ public class OGEssentials extends JavaPlugin implements Listener {
      */
     public BackManager getBackManager() {
         return backManager;
+    }
+
+    /**
+     * Get the Permission manager instance.
+     *
+     * @return The Permission manager
+     */
+    public PermissionManager getPermissionManager() {
+        return permissionManager;
     }
     
     /**

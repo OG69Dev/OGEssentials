@@ -1,7 +1,10 @@
 package dev.og69.ogessentials.managers;
 
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
+import org.bukkit.scoreboard.Scoreboard;
+import org.bukkit.scoreboard.Team;
 
 import java.util.Comparator;
 import java.util.HashMap;
@@ -14,8 +17,15 @@ import java.util.UUID;
  * This manager allows different systems (AFK, etc.) to add their own
  * prefixes/suffixes to player names without conflicting with each other.
  * Tags are ordered by priority (higher priority = appears first).
+ * 
+ * Tags are shown:
+ * - In chat (via displayName)
+ * - In tab list (via playerListName)
+ * - Above player heads (via scoreboard teams)
  */
 public class NameTagManager {
+    
+    private static final String TEAM_PREFIX = "og_";
     
     /**
      * Represents a name tag with prefix, suffix, and priority.
@@ -41,6 +51,7 @@ public class NameTagManager {
                   .put(tagId, new TagData(prefix, suffix, priority));
         
         updateDisplayName(player);
+        updateScoreboardTeam(player);
     }
     
     /**
@@ -61,6 +72,7 @@ public class NameTagManager {
         }
         
         updateDisplayName(player);
+        updateScoreboardTeam(player);
     }
     
     /**
@@ -82,6 +94,33 @@ public class NameTagManager {
      */
     public void clearPlayer(UUID playerId) {
         playerTags.remove(playerId);
+    }
+    
+    /**
+     * Initialize a player's scoreboard team on join.
+     * 
+     * @param player The player who joined
+     */
+    public void initializePlayer(Player player) {
+        // Ensure team exists and player is added
+        getOrCreateTeam(player);
+        updateScoreboardTeam(player);
+    }
+    
+    /**
+     * Clean up a player's scoreboard team on quit.
+     * 
+     * @param player The player who quit
+     */
+    public void cleanupPlayer(Player player) {
+        clearPlayer(player.getUniqueId());
+        
+        Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
+        String teamName = getTeamName(player);
+        Team team = scoreboard.getTeam(teamName);
+        if (team != null) {
+            team.unregister();
+        }
     }
     
     /**
@@ -122,10 +161,80 @@ public class NameTagManager {
                 suffixBuilder.append(tag.suffix());
             });
         
-        String newName = prefixBuilder.toString() + player.getName() + suffixBuilder.toString();
+        String newName = ChatColor.translateAlternateColorCodes('&', prefixBuilder.toString() + player.getName() + suffixBuilder.toString());
         
         player.setDisplayName(newName);
         player.setPlayerListName(newName);
+    }
+    
+    /**
+     * Update the scoreboard team for a player to show tags above their head.
+     * 
+     * @param player The player to update
+     */
+    private void updateScoreboardTeam(Player player) {
+        Team team = getOrCreateTeam(player);
+        
+        UUID playerId = player.getUniqueId();
+        Map<String, TagData> tags = playerTags.get(playerId);
+        
+        if (tags == null || tags.isEmpty()) {
+            // No tags, clear prefix/suffix
+            team.setPrefix("");
+            team.setSuffix("");
+            return;
+        }
+        
+        // Sort tags by priority (higher first)
+        StringBuilder prefixBuilder = new StringBuilder();
+        StringBuilder suffixBuilder = new StringBuilder();
+        
+        tags.values().stream()
+            .sorted(Comparator.comparingInt(TagData::priority).reversed())
+            .forEach(tag -> {
+                prefixBuilder.append(tag.prefix());
+                suffixBuilder.append(tag.suffix());
+            });
+        
+        team.setPrefix(ChatColor.translateAlternateColorCodes('&', prefixBuilder.toString()));
+        team.setSuffix(ChatColor.translateAlternateColorCodes('&', suffixBuilder.toString()));
+    }
+    
+    /**
+     * Get or create the scoreboard team for a player.
+     * 
+     * @param player The player
+     * @return The team for this player
+     */
+    private Team getOrCreateTeam(Player player) {
+        Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
+        String teamName = getTeamName(player);
+        
+        Team team = scoreboard.getTeam(teamName);
+        if (team == null) {
+            team = scoreboard.registerNewTeam(teamName);
+        }
+        
+        // Ensure player is on their team
+        if (!team.hasEntry(player.getName())) {
+            team.addEntry(player.getName());
+        }
+        
+        return team;
+    }
+    
+    /**
+     * Get the team name for a player.
+     * Uses a prefix to avoid conflicts with other plugins.
+     * 
+     * @param player The player
+     * @return The team name
+     */
+    private String getTeamName(Player player) {
+        // Team names are limited to 16 characters in older versions
+        // Use first 13 chars of UUID to ensure uniqueness within limit
+        String uuidPart = player.getUniqueId().toString().replace("-", "").substring(0, 10);
+        return TEAM_PREFIX + uuidPart;
     }
     
     /**
@@ -133,6 +242,19 @@ public class NameTagManager {
      * Called on plugin disable to reset all player names.
      */
     public void cleanup() {
+        // Reset all online players
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            resetDisplayName(player);
+            
+            // Remove team
+            Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
+            String teamName = getTeamName(player);
+            Team team = scoreboard.getTeam(teamName);
+            if (team != null) {
+                team.unregister();
+            }
+        }
+        
         playerTags.clear();
     }
 }

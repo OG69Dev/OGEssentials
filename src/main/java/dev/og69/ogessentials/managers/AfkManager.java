@@ -66,6 +66,7 @@ public class AfkManager {
      */
     public void initializePlayer(Player player) {
         lastActivity.put(player.getUniqueId(), System.currentTimeMillis());
+        nameTagManager.initializePlayer(player);
     }
     
     /**
@@ -77,7 +78,7 @@ public class AfkManager {
         UUID playerId = player.getUniqueId();
         lastActivity.remove(playerId);
         afkPlayers.remove(playerId);
-        nameTagManager.clearPlayer(playerId);
+        nameTagManager.cleanupPlayer(player);
     }
     
     /**
